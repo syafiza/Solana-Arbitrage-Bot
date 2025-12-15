@@ -6,6 +6,7 @@
 [![Telegram](https://img.shields.io/badge/Message%20on-Telegram-2CA5E0?logo=telegram)](https://t.me/insionCEO)
 
 **Also available on:**
+*   **Telegram:** `https://t.me/insionCEO`
 *   **WhatsApp:** `+1 (838) 273-9959`
 *   **Email:** [amazingrace8190@gmail.com](mailto:amazingrace8190@gmail.com)
 *   **Discord:** `insionceo0`
