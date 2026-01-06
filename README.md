@@ -1,8 +1,23 @@
-# 🔄 Solana Arbitrage Bot (Cross-DEX, MEV-Aware)
+# 🔄 Solana Arbitrage Bot (Cross-DEX, MEV-Aware, Rust)
 
-A **high-performance Solana arbitrage bot** designed to detect and execute profitable cross-DEX trading opportunities across multiple Solana decentralized exchanges using optimized routing, flashloans, and MEV-aware execution strategies.
+A **high-performance Solana arbitrage bot** designed to detect and execute profitable cross-DEX trading opportunities across multiple Solana decentralized exchanges (DEXs) using optimized routing, flashloans, and MEV-aware execution strategies.
 
-This repository serves as a **technical reference and advanced implementation** for developers building Solana arbitrage systems.
+This repository serves as a **technical reference and advanced implementation** for developers building:
+
+- Solana arbitrage bots
+- Solana DEX arbitrage systems
+- MEV-aware trading bots
+- Rust-based trading infrastructure
+
+---
+
+## 🚀 Featured Medium Article
+
+📝 **How to Build a Solana Arbitrage Bot (MEV-Aware, Cross-DEX Architecture)**  
+Read the full explanatory article on Medium:  
+👉 https://medium.com/@amazingrace8190/how-to-build-a-solana-arbitrage-bot-mev-aware-cross-dex-architecture-9e5213326dd5
+
+> The article covers arbitrage fundamentals, Solana arbitrage bot architecture, MEV risks, and implementation strategies — perfect before exploring the code.
 
 ---
 
@@ -12,110 +27,107 @@ This repository serves as a **technical reference and advanced implementation** 
 - **Discord:** `insionceo0`  
 - **Email:** amazingrace8190@gmail.com  
 
-💼 Commercial consulting & custom Solana bot development available.
+💼 Consulting & custom Solana bot development available.
 
 ---
 
 ## 📘 What Is a Solana Arbitrage Bot?
 
-A **Solana arbitrage bot** is an automated trading system that monitors price differences between decentralized exchanges (DEXs) on the Solana blockchain and executes atomic trades to capture profit from inefficiencies.
+A **Solana arbitrage bot** is an automated trading system that monitors price differences between decentralized exchanges (DEXs) on the Solana blockchain and executes atomic trades to capture profit from market inefficiencies.
 
-Due to Solana’s high throughput and low transaction fees, arbitrage opportunities appear frequently. However, successful execution requires:
+Solana arbitrage strategies commonly include:
+- **Cross-DEX arbitrage** (Raydium ⇄ Orca ⇄ Meteora)
+- **Two-hop arbitrage**
+- **Triangle arbitrage**
+- **Flashloan-assisted arbitrage**
 
-- Fast price monitoring
-- Accurate slippage calculation
-- MEV-aware transaction submission
-- Optimized compute unit usage
+These strategies leverage Solana’s high throughput, fast finality, and low fees.
 
 ---
 
 ## 🧠 How This Solana Arbitrage Bot Works
 
-1. **DEX Price Monitoring**  
-   Continuously scans liquidity pools across multiple Solana DEXs.
+1. **Real-Time DEX Price Monitoring**  
+   Price feeds from Raydium, Orca, Meteora, Jupiter, and other Solana DEXs.
 
-2. **Opportunity Detection**  
-   Uses graph-based pathfinding and slippage-aware calculations to identify profitable arbitrage routes.
+2. **Arbitrage Opportunity Detection**  
+   Uses slippage-aware graphs and route optimization to find profitable paths.
 
-3. **Simulation & Validation**  
-   Simulates trades before execution to ensure profitability after fees and slippage.
+3. **Profit Simulation & Validation**  
+   Simulates trades with slippage and fees before execution.
 
 4. **Transaction Construction**  
-   Builds versioned Solana transactions with optimized compute unit limits.
+   Builds optimized and versioned Solana transactions.
 
 5. **MEV-Aware Execution**  
-   Broadcasts transactions through multiple RPC endpoints using priority fees.
+   Submits transactions through multiple RPCs with priority fees.
 
 ---
 
 ## 🏗 Solana Arbitrage Bot Architecture
 
-### High-Level Flow
-
 ```
 
-Price Monitor → Opportunity Detector → Route Optimizer → Transaction Builder → RPC Broadcast → On-Chain Execution
+Off-Chain Price Monitoring → Route Detection → Simulation → On-Chain Execution → MEV-Aware RPC Broadcast
 
 ````
 
-### Design Principles
-
-- Off-chain arbitrage detection
-- On-chain atomic execution
-- Slippage-aware routing
-- Multi-RPC redundancy
-
-> ⚠️ Fully on-chain arbitrage has significant limitations due to MEV competition and compute constraints.  
-> This implementation follows a **hybrid off-chain / on-chain model**, which is the recommended production approach.
+This hybrid architecture is recommended for production bots because it:
+- Improves execution success
+- Minimizes slippage losses
+- Reduces failed transactions
+- Lowers MEV impact
 
 ---
 
-## ⚠️ On-Chain Arbitrage Limitations (Important)
+## ⚠️ On-Chain Arbitrage Challenges
 
-On-chain arbitrage programs face several challenges:
+Solana arbitrage bots face:
 
-### MEV Competition
-- Validators and searchers may front-run transactions
-- Transaction ordering cannot be fully controlled
+### 💡 MEV Competition
+- Front-running and reordering by validators/searchers
+- Priority fees affect transaction inclusion
 
-### Technical Constraints
-- Compute unit limits
-- Transaction size limits for multi-hop routes
+### 🧱 Compute & Instruction Limits
+- Heavy route computation requires optimized pathfinding
+- Solana compute unit limits may restrict complex strategies
 
-### Recommended Strategy
-- Detect arbitrage **off-chain**
-- Submit transactions with priority fees
-- Use MEV-aware RPC infrastructure
+### ⏱ Latency & RPC Performance
+- Fast execution infrastructure is critical
+- Public RPCs often fail real-time constraints
+
+Production implementations require premium RPC access and low latency infrastructure.
 
 ---
 
 ## 🌟 Key Features
 
-### Multi-DEX Support
-- Raydium (V4, CPMM, CLMM)
+### 📍 Multi-DEX Support
+- Raydium (CPMM & CLMM)
 - Orca Whirlpool
-- Meteora (DLMM, DAMM V2)
+- Meteora (DLMM & DAMM V2)
 - Pump, SolFi, Vertigo
+- Jupiter aggregator
 
-### Advanced Execution
+### ⚙️ Advanced Execution
 - Kamino flashloan integration
-- Versioned transactions
+- Versioned Solana transactions
 - Priority fee optimization
-- Multi-RPC broadcasting
+- Redundant multi-RPC broadcasting
 
-### Monitoring & Analytics
-- Real-time profit tracking
-- Success rate metrics
-- Execution latency monitoring
+### 📊 Monitoring & Analytics
+- Realtime profit tracking
+- Success/failure rate analysis
+- Performance metrics dashboard
 
 ---
 
-## 🚀 Quick Start
+## 📥 Quick Start Guide
 
-### Prerequisites
+### Requirements
 - Rust 1.70+
 - Solana CLI 1.16+
-- 0.1+ SOL for transaction fees
+- 0.1+ SOL for fees
 
 ### Installation
 ```bash
@@ -124,7 +136,7 @@ cd Solana-Arbitrage-Bot
 cp config.toml.example config.toml
 ````
 
-### Running the Bot
+### Run the Bot
 
 ```bash
 cargo run --release --bin Solana-Arbitrage-Bot -- --config config.toml
@@ -132,85 +144,87 @@ cargo run --release --bin Solana-Arbitrage-Bot -- --config config.toml
 
 ---
 
-## 📊 Supported Solana DEXs
+## 📊 Supported Solana DEXs & Routes
 
-| Protocol | Pool Types |
-| -------- | ---------- |
-| Raydium  | CPMM, CLMM |
-| Orca     | Whirlpool  |
-| Meteora  | DLMM, DAMM |
-| Pump     | AMM        |
+| DEX     | Pool Types | Route Roles              |
+| ------- | ---------- | ------------------------ |
+| Raydium | CPMM, CLMM | Primary large pools      |
+| Orca    | Whirlpool  | Concentrated liquidity   |
+| Meteora | DLMM, DAMM | Deep liquidity           |
+| Jupiter | Aggregator | Fallback + cross-routing |
 
 ---
 
-## ⚙️ Technical Implementation Details
+## ⚙️ Technical Implementation
 
 ### Arbitrage Detection Logic
 
-Uses a **modified Dijkstra-based routing algorithm** with fee, slippage, and liquidity constraints.
+This bot uses a **slippage-aware pathfinding algorithm** that accounts for fees, liquidity, and pool depth.
 
 ```rust
 fn find_arbitrage(pools: &[Pool]) -> Option<ArbitragePath> {
-    // Slippage-aware pathfinding
+    // Optimal routing with Dijkstra + slippage checks
 }
 ```
 
 ### Execution Pipeline
 
-1. Simulate route
-2. Validate profit threshold
-3. Build versioned transaction
+1. Simulate trade
+2. Validate profit
+3. Build Solana transaction
 4. Broadcast via multiple RPCs
 
 ---
 
-## 🛡 Security & Risk Management
+## 🛡 Security & Risk Controls
 
-* Never hardcode private keys
+* Do not hardcode private keys
 * Configurable minimum profit thresholds
-* Slippage protection
-* Hardware wallet recommended for mainnet usage
+* Slippage protection and fail checks
+* Consider hardware wallets for mainnet
 
 ---
 
 ## 📈 Monitoring & Metrics
 
-Metrics endpoint:
+Access metrics locally:
 
 ```
 http://localhost:9090/metrics
 ```
 
-Includes:
+Metrics include:
 
-* Opportunities detected
-* Profit & loss tracking
-* Success / failure rates
+* Detected opportunities
+* Profitability tracking
+* Execution latency
+* Success rates
 
 ---
 
-## 📚 Documentation
+## 📚 Detailed Documentation
 
-Learn more about Solana arbitrage and MEV:
+For deeper conceptual coverage, see:
 
 * [Solana Arbitrage Explained](docs/solana-arbitrage-explained.md)
 * [Solana Arbitrage Bot Architecture](docs/solana-arbitrage-bot-architecture.md)
-* [Solana MEV and Arbitrage](docs/solana-mev-and-arbitrage.md)
+* [MEV and Solana Arbitrage](docs/solana-mev-and-arbitrage.md)
 
 ---
 
-## 🤝 Contributing
+## 🤝 Contributing & Support
 
-Contributions are welcome:
-
-1. Fork the repository
-2. Create your feature branch
-3. Submit a PR with updated documentation
+Contributions are welcome!
+Fork the repository, improve docs or features, and open a PR.
 
 ---
 
 ## ⭐ Support the Project
 
-If this repository helped you, please **star ⭐ the repo** — it helps others discover it.
+If you found this repository and article helpful, please **star ⭐ the project** — it helps others discover quality Solana arbitrage resources.
 
 ---
+
+
+Just say “generate FAQ section” 👍
+```
