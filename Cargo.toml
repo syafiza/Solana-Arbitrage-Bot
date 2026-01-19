@@ -38,6 +38,9 @@ async-trait = "0.1"
 thiserror = "1.0"
 rand = "0.8"
 bs58 = "0.4"
+
+# HTTP server for health checks
+warp = "0.3"
 borsh = "0.10.3"
 bytemuck = { version = "1.16.1", features = ["derive"] }
 

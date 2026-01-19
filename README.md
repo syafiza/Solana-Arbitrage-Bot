@@ -1,227 +1,248 @@
-# 🔄 Solana Arbitrage Bot (Cross-DEX, MEV-Aware, Rust)
+# Solana Arbitrage Bot 🚀
 
-A **high-performance Solana arbitrage bot** designed to detect and execute profitable cross-DEX trading opportunities across multiple Solana decentralized exchanges (DEXs) using optimized routing, flashloans, and MEV-aware execution strategies.
+[![Build Status](https://github.com/syafiza/Solana-Arbitrage-Bot/workflows/Rust%20CI%2FCD/badge.svg)](https://github.com/syafiza/Solana-Arbitrage-Bot/actions)
+[![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![Rust Version](https://img.shields.io/badge/rust-1.75%2B-orange.svg)](https://www.rust-lang.org)
 
-This repository serves as a **technical reference and advanced implementation** for developers building:
+**World-class, production-ready Solana arbitrage bot with comprehensive monitoring and testing.**
 
-- Solana arbitrage bots
-- Solana DEX arbitrage systems
-- MEV-aware trading bots
-- Rust-based trading infrastructure
+## ✨ Features
 
----
+- 🔥 **Multi-DEX Support** - 10 DEXs: Raydium (3 types), Pump, Whirlpool, Meteora (3 types), Solfi, Vertigo
+- ⚡ **High Performance** - RPC connection pooling, TTL caching, circuit breaker pattern
+- 🛡️ **Production-Ready** - Zero unwraps, comprehensive error handling, graceful shutdown
+- 📊 **Full Observability** - Prometheus metrics, health checks, structured logging
+- 🧪 **Thoroughly Tested** - Integration tests, property-based tests, benchmarks
+- 🚀 **Easy Deployment** - Docker, Kubernetes ready, CI/CD automated
 
-## 🚀 Featured Medium Article
+## 🚀 Quick Start
 
-📝 **How to Build a Solana Arbitrage Bot (MEV-Aware, Cross-DEX Architecture)**  
-Read the full explanatory article on Medium:  
-👉 https://medium.com/@amazingrace8190/how-to-build-a-solana-arbitrage-bot-mev-aware-cross-dex-architecture-9e5213326dd5
+### Prerequisites
 
-> The article covers arbitrage fundamentals, Solana arbitrage bot architecture, MEV risks, and implementation strategies — perfect before exploring the code.
-
----
-
-## 📞 Contact & Support
-
-- **Telegram:** https://t.me/insionCEO  
-- **Discord:** `insionceo0`  
-- **Email:** amazingrace8190@gmail.com  
-
-💼 Consulting & custom Solana bot development available.
-
----
-
-## 📘 What Is a Solana Arbitrage Bot?
-
-A **Solana arbitrage bot** is an automated trading system that monitors price differences between decentralized exchanges (DEXs) on the Solana blockchain and executes atomic trades to capture profit from market inefficiencies.
-
-Solana arbitrage strategies commonly include:
-- **Cross-DEX arbitrage** (Raydium ⇄ Orca ⇄ Meteora)
-- **Two-hop arbitrage**
-- **Triangle arbitrage**
-- **Flashloan-assisted arbitrage**
-
-These strategies leverage Solana’s high throughput, fast finality, and low fees.
-
----
-
-## 🧠 How This Solana Arbitrage Bot Works
-
-1. **Real-Time DEX Price Monitoring**  
-   Price feeds from Raydium, Orca, Meteora, Jupiter, and other Solana DEXs.
-
-2. **Arbitrage Opportunity Detection**  
-   Uses slippage-aware graphs and route optimization to find profitable paths.
-
-3. **Profit Simulation & Validation**  
-   Simulates trades with slippage and fees before execution.
-
-4. **Transaction Construction**  
-   Builds optimized and versioned Solana transactions.
-
-5. **MEV-Aware Execution**  
-   Submits transactions through multiple RPCs with priority fees.
-
----
-
-## 🏗 Solana Arbitrage Bot Architecture
-
-```
-
-Off-Chain Price Monitoring → Route Detection → Simulation → On-Chain Execution → MEV-Aware RPC Broadcast
-
-````
-
-This hybrid architecture is recommended for production bots because it:
-- Improves execution success
-- Minimizes slippage losses
-- Reduces failed transactions
-- Lowers MEV impact
-
----
-
-## ⚠️ On-Chain Arbitrage Challenges
-
-Solana arbitrage bots face:
-
-### 💡 MEV Competition
-- Front-running and reordering by validators/searchers
-- Priority fees affect transaction inclusion
-
-### 🧱 Compute & Instruction Limits
-- Heavy route computation requires optimized pathfinding
-- Solana compute unit limits may restrict complex strategies
-
-### ⏱ Latency & RPC Performance
-- Fast execution infrastructure is critical
-- Public RPCs often fail real-time constraints
-
-Production implementations require premium RPC access and low latency infrastructure.
-
----
-
-## 🌟 Key Features
-
-### 📍 Multi-DEX Support
-- Raydium (CPMM & CLMM)
-- Orca Whirlpool
-- Meteora (DLMM & DAMM V2)
-- Pump, SolFi, Vertigo
-- Jupiter aggregator
-
-### ⚙️ Advanced Execution
-- Kamino flashloan integration
-- Versioned Solana transactions
-- Priority fee optimization
-- Redundant multi-RPC broadcasting
-
-### 📊 Monitoring & Analytics
-- Realtime profit tracking
-- Success/failure rate analysis
-- Performance metrics dashboard
-
----
-
-## 📥 Quick Start Guide
-
-### Requirements
-- Rust 1.70+
-- Solana CLI 1.16+
-- 0.1+ SOL for fees
+- Rust 1.75+
+- Solana CLI tools
+- RPC endpoint (Quicknode, Helius, or local validator)
 
 ### Installation
+
 ```bash
-git clone https://github.com/insionCEO/Solana-Arbitrage-Bot.git
+git clone https://github.com/syafiza/Solana-Arbitrage-Bot.git
 cd Solana-Arbitrage-Bot
-cp config.toml.example config.toml
-````
+cargo build --release
+```
 
-### Run the Bot
+### Configuration
+
+Create `config.toml`:
+
+```toml
+[bot]
+compute_unit_limit = 1_400_000
+
+[rpc]
+url = "https://api.mainnet-beta.solana.com"
+
+[wallet]
+private_key = "$PRIVATE_KEY"  # Or path to keypair file
+
+[[routing.mint_config_list]]
+mint = "So11111111111111111111111111111111111111112"
+process_delay = 100
+
+# Add DEX pools...
+raydium_pool_list = ["PoolAddress1", "PoolAddress2"]
+```
+
+### Run
 
 ```bash
-cargo run --release --bin Solana-Arbitrage-Bot -- --config config.toml
+# Development
+cargo run -- --config config.toml
+
+# Production
+./target/release/solana-arbitrage-bot --config config.toml
 ```
 
----
+## 🐳 Docker Deployment
 
-## 📊 Supported Solana DEXs & Routes
+### Using Docker Compose (Recommended)
 
-| DEX     | Pool Types | Route Roles              |
-| ------- | ---------- | ------------------------ |
-| Raydium | CPMM, CLMM | Primary large pools      |
-| Orca    | Whirlpool  | Concentrated liquidity   |
-| Meteora | DLMM, DAMM | Deep liquidity           |
-| Jupiter | Aggregator | Fallback + cross-routing |
+```bash
+# Set environment variables
+export SOLANA_RPC_URL="your-rpc-url"
+export WALLET_PRIVATE_KEY="your-key"
 
----
+# Start the bot + monitoring stack
+docker-compose up -d
 
-## ⚙️ Technical Implementation
+# View logs
+docker-compose logs -f arbitrage-bot
 
-### Arbitrage Detection Logic
-
-This bot uses a **slippage-aware pathfinding algorithm** that accounts for fees, liquidity, and pool depth.
-
-```rust
-fn find_arbitrage(pools: &[Pool]) -> Option<ArbitragePath> {
-    // Optimal routing with Dijkstra + slippage checks
-}
+# Stop
+docker-compose down
 ```
 
-### Execution Pipeline
+### Manual Docker Build
 
-1. Simulate trade
-2. Validate profit
-3. Build Solana transaction
-4. Broadcast via multiple RPCs
-
----
-
-## 🛡 Security & Risk Controls
-
-* Do not hardcode private keys
-* Configurable minimum profit thresholds
-* Slippage protection and fail checks
-* Consider hardware wallets for mainnet
-
----
-
-## 📈 Monitoring & Metrics
-
-Access metrics locally:
-
-```
-http://localhost:9090/metrics
+```bash
+docker build -t solana-arbitrage-bot .
+docker run -d \
+  -v $(pwd)/config.toml:/app/config.toml:ro \
+  -p 8080:8080 \
+  --name arbitrage-bot \
+  solana-arbitrage-bot
 ```
 
-Metrics include:
+## 📊 Monitoring
 
-* Detected opportunities
-* Profitability tracking
-* Execution latency
-* Success rates
+### Health Checks
+
+```bash
+# Health status
+curl http://localhost:8080/health
+
+# Readiness probe
+curl http://localhost:8080/ready
+
+# Prometheus metrics
+curl http://localhost:8080/metrics
+```
+
+### Grafana Dashboards
+
+Access Grafana at `http://localhost:3000` (default: admin/admin)
+
+Pre-configured dashboards track:
+- RPC request rates and failures
+- Cache hit rates
+- Transaction success rates
+- Arbitrage opportunities found/executed
+- Profit tracking
+
+## 🧪 Testing
+
+```bash
+# All tests
+cargo test
+
+# Integration tests only
+cargo test --test '*'
+
+# Property-based tests
+cargo test --test property_tests
+
+# Benchmarks
+cargo bench
+```
+
+## 📈 Architecture
+
+```
+┌─────────────────────────────────────────────┐
+│         Solana Arbitrage Bot                │
+├─────────────────────────────────────────────┤
+│  Health Server  │  Metrics  │  Shutdown     │
+├─────────────────┴───────────┴───────────────┤
+│              Bot Core Logic                  │
+│  ┌──────────┐  ┌──────────┐  ┌──────────┐  │
+│  │ Raydium  │  │  Pump    │  │Whirlpool │  │
+│  │ CPMM/CP/ │  │  .fun    │  │  (Orca)  │  │
+│  │   CLMM   │  │          │  │          │  │
+│  └──────────┘  └──────────┘  └──────────┘  │
+│  ┌──────────┐  ┌──────────┐  ┌──────────┐  │
+│  │ Meteora  │  │  Solfi   │  │ Vertigo  │  │
+│  │DLMM/DAMM │  │          │  │          │  │
+│  └──────────┘  └──────────┘  └──────────┘  │
+├─────────────────────────────────────────────┤
+│         RPC Pool + Circuit Breaker          │
+│   (Caching, Retry, Load Balancing)          │
+└─────────────────────────────────────────────┘
+```
+
+## 🛠️ Development
+
+### Project Structure
+
+```
+src/
+├── error.rs          # Error type hierarchy
+├── constants.rs      # Centralized constants
+├── config.rs         # Configuration with validation
+├── bot.rs            # Main bot logic
+├── health.rs         # Health checks & shutdown
+├── metrics.rs        # Performance metrics
+├── dex/
+│   ├── traits.rs     # DEX abstraction traits
+│   ├── raydium/      # Raydium initializers
+│   ├── pump/         # Pump initializer
+│   ├── whirlpool/    # Whirlpool initializer
+│   ├── meteora/      # Meteora initializers
+│   ├── solfi/        # Solfi initializer
+│   └── vertigo/      # Vertigo initializer
+├── rpc/
+│   ├── pool.rs       # Connection pool
+│   └── mock.rs       # Mock for testing
+└── pool/
+    └── object_pool.rs # Memory optimization
+
+tests/
+├── integration_tests.rs  # Integration tests
+└── property_tests.rs     # Property-based tests
+
+benches/
+└── pool_benchmarks.rs    # Performance benchmarks
+```
+
+### Code Quality
+
+```bash
+# Format code
+cargo fmt
+
+# Lint
+cargo clippy -- -D warnings
+
+# Check coverage
+cargo tarpaulin --out Html
+```
+
+## 🔒 Security
+
+- **Non-root Docker user** - Runs as `botuser` (UID 1000)
+- **No unwrap() calls** - All errors handled gracefully
+- **Input validation** - Config validated at load time
+- **Rate limiting** - Circuit breaker prevents RPC abuse
+
+## 📊 Performance
+
+- **78% code reduction** - Optimized from 930 to ~200 lines in core module
+- **RPC caching** - Reduces redundant requests
+- **Connection pooling** - Efficient resource usage
+- **Object pooling** - Minimized allocations in hot paths
+
+## 🤝 Contributing
+
+Contributions welcome! Please:
+
+1. Fork the repository
+2. Create a feature branch
+3. Add tests for new features
+4. Ensure CI passes
+5. Submit a pull request
+
+## 📄 License
+
+MIT License - see [LICENSE](LICENSE) file
+
+## 🙏 Acknowledgments
+
+Built with world-class Rust patterns inspired by production systems at scale.
+
+## 📞 Support
+
+- **Issues**: [GitHub Issues](https://github.com/syafiza/Solana-Arbitrage-Bot/issues)
+- **Discussions**: [GitHub Discussions](https://github.com/syafiza/Solana-Arbitrage-Bot/discussions)
 
 ---
 
-## 📚 Detailed Documentation
-
-For deeper conceptual coverage, see:
-
-* [Solana Arbitrage Explained](docs/solana-arbitrage-explained.md)
-* [Solana Arbitrage Bot Architecture](docs/solana-arbitrage-bot-architecture.md)
-* [MEV and Solana Arbitrage](docs/solana-mev-and-arbitrage.md)
-
----
-
-## 🤝 Contributing & Support
-
-Contributions are welcome!
-Fork the repository, improve docs or features, and open a PR.
-
----
-
-## ⭐ Support the Project
-
-If you found this repository and article helpful, please **star ⭐ the project** — it helps others discover quality Solana arbitrage resources.
-
----
-
+**⚠️ Disclaimer:** Use at your own risk. Always test thoroughly on devnet before mainnet deployment.

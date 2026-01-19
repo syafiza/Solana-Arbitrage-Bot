@@ -3,6 +3,7 @@ pub mod config;
 pub mod constants;
 pub mod dex;
 pub mod error;
+pub mod health;
 pub mod metrics;
 pub mod pool;
 pub mod pools;
