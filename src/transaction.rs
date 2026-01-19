@@ -35,10 +35,12 @@ use crate::dex::raydium::constants::{
 use crate::dex::whirlpool::constants::whirlpool_program_id;
 use solana_program::instruction::AccountMeta;
 use solana_program::pubkey::Pubkey;
-use solana_program::system_program;
+use solana_program::{system_instruction, system_program};
 use spl_associated_token_account::ID as associated_token_program_id;
 use spl_token::ID as token_program_id;
 use std::str::FromStr;
+
+use crate::jito::JitoClient;
 
 pub async fn build_and_send_transaction(
     wallet_kp: &Keypair,
@@ -47,6 +49,7 @@ pub async fn build_and_send_transaction(
     rpc_clients: &[Arc<RpcClient>],
     blockhash: Hash,
     address_lookup_table_accounts: &[AddressLookupTableAccount],
+    jito_client: Option<&JitoClient>,
 ) -> anyhow::Result<Vec<Signature>> {
     let enable_flashloan = config.flashloan.as_ref().map_or(false, |k| k.enabled);
     let compute_unit_limit = config.bot.compute_unit_limit;
@@ -72,14 +75,24 @@ pub async fn build_and_send_transaction(
         enable_flashloan,
     )?;
 
-    let mut all_instructions = instructions.clone();
+    instructions.push(swap_ix);
 
-    debug!("Adding swap instruction");
-    all_instructions.push(swap_ix);
+    // Jito Logic: Append Tip if client is present
+    if let Some(jito_client) = jito_client {
+        debug!("Adding Jito tip instruction");
+        let tip_account = jito_client.get_random_tip_account();
+        let tip_amount = 100_000; // 0.0001 SOL tip (configurable in future)
+        let tip_ix = system_instruction::transfer(
+            &wallet_kp.pubkey(),
+            &tip_account,
+            tip_amount,
+        );
+        instructions.push(tip_ix);
+    }
 
     let message = Message::try_compile(
         &wallet_kp.pubkey(),
-        &all_instructions,
+        &instructions,
         address_lookup_table_accounts,
         blockhash,
     )?;
@@ -88,6 +101,28 @@ pub async fn build_and_send_transaction(
         solana_sdk::message::VersionedMessage::V0(message),
         &[wallet_kp],
     )?;
+
+    // Submit via Jito if enabled
+    if let Some(jito_client) = jito_client {
+        match jito_client.send_bundle(vec![tx.clone()]).await {
+            Ok(sig_str) => {
+                info!("Bundle sent via Jito! Signature: {}", sig_str);
+                // Jito returns a signature string, usually we trust it.
+                // We can return it as a Signature object.
+                if let Ok(sig) = Signature::from_str(&sig_str) {
+                    return Ok(vec![sig]);
+                } else {
+                    // Fallback if signature parsing fails (Jito might return ID)
+                    info!("Jito returned ID: {}. Returning zero signature for logs.", sig_str);
+                    return Ok(vec![Signature::default()]); 
+                }
+            }
+            Err(e) => {
+                error!("Jito bundle submission failed: {}. Falling back to RPC.", e);
+                // Fallback to standard RPC below
+            }
+        }
+    }
 
     let max_retries = config
         .spam

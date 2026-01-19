@@ -3,7 +3,9 @@ use crate::constants::{
     ATA_CREATION_COMPUTE_UNIT_LIMIT, ATA_CREATION_COMPUTE_UNIT_PRICE,
     DEFAULT_BLOCKHASH_REFRESH_INTERVAL_SECS, DEFAULT_LOOKUP_TABLE_PUBKEY,
 };
+use crate::database::Database;
 use crate::error::{BotError, BotResult};
+use crate::jito::{JitoClient, JITO_NYC};
 use crate::refresh::initialize_pool_data;
 use crate::transaction::build_and_send_transaction;
 use solana_client::rpc_client::RpcClient;
@@ -28,7 +30,35 @@ pub async fn run_bot(config_path: &str) -> BotResult<()> {
     let config = Config::load(config_path)?;
     info!("Configuration loaded successfully");
 
+    // Initialize Database (Optional)
+    let db = if let Ok(db_url) = std::env::var("DATABASE_URL") {
+        info!("Initializing database connection...");
+        match Database::new(&db_url).await {
+            Ok(db) => Some(Arc::new(db)),
+            Err(e) => {
+                warn!("Failed to initialize database: {}. Running without persistence.", e);
+                None
+            }
+        }
+    } else {
+        info!("No DATABASE_URL found. Running in-memory only.");
+        None
+    };
+
     let rpc_client = Arc::new(RpcClient::new(config.rpc.url.clone()));
+
+    // Initialize Jito Client
+    let wallet_kp_for_jito = load_keypair(&config.wallet.private_key)?;
+    let jito_client = match JitoClient::new(JITO_NYC, Arc::new(wallet_kp_for_jito)).await {
+        Ok(client) => {
+            info!("Jito Client initialized successfully (Elite MEV enabled)");
+            Some(Arc::new(client))
+        }
+        Err(e) => {
+            warn!("Failed to initialize Jito Client: {}. MEV capabilities disabled.", e);
+            None
+        }
+    };
 
     let sending_rpc_clients = if let Some(spam_config) = &config.spam {
         if spam_config.enabled {
@@ -137,7 +167,7 @@ pub async fn run_bot(config_path: &str) -> BotResult<()> {
     }
 
     for mint_config in &config.routing.mint_config_list {
-        info!("Processing mint: {}", mint_config.mint);
+        info!("Spawning strategy task for mint: {}", mint_config.mint);
 
         let pool_data = initialize_pool_data(
             &mint_config.mint,
@@ -158,8 +188,6 @@ pub async fn run_bot(config_path: &str) -> BotResult<()> {
 
         let mint_pool_data = Arc::new(Mutex::new(pool_data));
 
-        // TODO: Add logic to periodically refresh pool data
-
         let config_clone = config.clone();
         let mint_config_clone = mint_config.clone();
         let sending_rpc_clients_clone = sending_rpc_clients.clone();
@@ -167,6 +195,9 @@ pub async fn run_bot(config_path: &str) -> BotResult<()> {
         let wallet_bytes = wallet_kp.to_bytes();
         let wallet_kp_clone = Keypair::from_bytes(&wallet_bytes)
             .map_err(|e| BotError::WalletError(format!("Failed to clone keypair: {}", e)))?;
+        let jito_client_clone = jito_client.clone();
+        let db_clone = db.clone();
+        
         let mut lookup_table_accounts = mint_config_clone.lookup_table_accounts.unwrap_or_default();
         lookup_table_accounts.push(DEFAULT_LOOKUP_TABLE_PUBKEY.to_string());
 
@@ -187,40 +218,27 @@ pub async fn run_bot(config_path: &str) -> BotResult<()> {
                                     info!("   Successfully loaded lookup table: {}", pubkey);
                                 }
                                 Err(e) => {
-                                    error!(
-                                        "   Failed to deserialize lookup table {}: {}",
-                                        pubkey, e
-                                    );
-                                    continue; // Skip this lookup table but continue processing others
+                                    error!("   Failed to deserialize lookup table {}: {}", pubkey, e);
+                                    continue;
                                 }
                             }
                         }
                         Err(e) => {
                             error!("   Failed to fetch lookup table account {}: {}", pubkey, e);
-                            continue; // Skip this lookup table but continue processing others
+                            continue;
                         }
                     }
                 }
                 Err(e) => {
-                    error!(
-                        "   Invalid lookup table pubkey string {}: {}",
-                        lookup_table_account, e
-                    );
-                    continue; // Skip this lookup table but continue processing others
+                    error!("   Invalid lookup table pubkey string {}: {}", lookup_table_account, e);
+                    continue;
                 }
             }
-        }
-        if lookup_table_accounts_list.is_empty() {
-            warn!("   Warning: No valid lookup tables were loaded");
-        } else {
-            info!(
-                "   Loaded {} lookup tables successfully",
-                lookup_table_accounts_list.len()
-            );
         }
 
         tokio::spawn(async move {
             let process_delay = Duration::from_millis(mint_config_clone.process_delay);
+            info!("Strategy loop started for mint: {}", mint_config_clone.mint);
 
             loop {
                 let latest_blockhash = {
@@ -228,25 +246,39 @@ pub async fn run_bot(config_path: &str) -> BotResult<()> {
                     *guard
                 };
 
-                let guard = mint_pool_data.lock().await;
+                // Scope to hold lock only during transaction building
+                let signatures = {
+                    let guard = mint_pool_data.lock().await;
+                    
+                    // Pass jito_client option (converting Arc<T> to &T)
+                    build_and_send_transaction(
+                        &wallet_kp_clone,
+                        &config_clone,
+                        &*guard,
+                        &sending_rpc_clients_clone,
+                        latest_blockhash,
+                        &lookup_table_accounts_list,
+                        jito_client_clone.as_deref(), 
+                    )
+                    .await
+                };
 
-                match build_and_send_transaction(
-                    &wallet_kp_clone,
-                    &config_clone,
-                    &*guard, // Dereference the guard here
-                    &sending_rpc_clients_clone,
-                    latest_blockhash,
-                    &lookup_table_accounts_list,
-                )
-                .await
-                {
+                match signatures {
                     Ok(signatures) => {
-                        info!(
-                            "Transactions sent successfully for mint {}",
-                            mint_config_clone.mint
-                        );
                         for signature in signatures {
-                            info!("  Signature: {}", signature);
+                            // Log successful attempt to DB if available
+                            if !signature.to_string().is_empty() && signature != solana_sdk::signature::Signature::default() {
+                                if let Some(db) = &db_clone {
+                                    let _ = db.log_trade(
+                                        &mint_config_clone.mint, 
+                                        0, // Profit placeholder
+                                        &signature.to_string(), 
+                                        &["All pools".to_string()], // Placeholder
+                                        0, 
+                                        0
+                                    ).await;
+                                }
+                            }
                         }
                     }
                     Err(e) => {
@@ -278,7 +310,6 @@ async fn blockhash_refresher(
             Ok(blockhash) => {
                 let mut guard = cached_blockhash.lock().await;
                 *guard = blockhash;
-                info!("Blockhash refreshed: {}", blockhash);
             }
             Err(e) => {
                 let error = BotError::rpc_retryable(rpc_url.clone(), format!("Failed to refresh blockhash: {}", e));
