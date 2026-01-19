@@ -41,6 +41,15 @@ bs58 = "0.4"
 
 # HTTP server for health checks
 warp = "0.3"
+
+# CLI and display
+clap = { version = "4.0", features = ["derive"] }
+colored = "2.0"
+
+# Security and encryption
+aes-gcm = "0.10"
+argon2 = "0.5"
+base64 = "0.21"
 borsh = "0.10.3"
 bytemuck = { version = "1.16.1", features = ["derive"] }
 

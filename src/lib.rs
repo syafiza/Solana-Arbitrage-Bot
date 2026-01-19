@@ -1,4 +1,5 @@
 pub mod bot;
+pub mod cli;
 pub mod config;
 pub mod constants;
 pub mod dex;
@@ -9,4 +10,5 @@ pub mod pool;
 pub mod pools;
 pub mod refresh;
 pub mod rpc;
+pub mod secrets;
 pub mod transaction;
