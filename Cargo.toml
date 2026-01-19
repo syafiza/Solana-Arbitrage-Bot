@@ -57,6 +57,13 @@ base64 = "0.21"
 borsh = "0.10.3"
 bytemuck = { version = "1.16.1", features = ["derive"] }
 
+# Jito / MEV Dependencies
+jito-protos = "0.1"
+jito-searcher-client = "0.1"
+tonic = "0.9"
+prost = "0.11"
+prost-types = "0.11"
+
 # Command line argument parsing
 clap = "3.2"
 

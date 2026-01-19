@@ -1,17 +1,74 @@
 use crate::{
     constants::SOL_MINT,
-    dex::raydium::{clmm_info::POOL_TICK_ARRAY_BITMAP_SEED, raydium_clmm_program_id},
+    dex::{
+        meteora::{
+            damm_initializer::{MeteoraDammPool},
+            damm_v2_initializer::{MeteoraDammV2Pool},
+            dlmm_initializer::{MeteoraDlmmPool},
+        },
+        pump::initializer::PumpPool,
+        raydium::{
+            initializer::RaydiumCpmmPool,
+            cp_initializer::RaydiumCpPool,
+            clmm_initializer::RaydiumClmmPool,
+        },
+        solfi::initializer::SolfiPool,
+        vertigo::initializer::VertigoPool,
+        whirlpool::initializer::WhirlpoolPool,
+    },
 };
-use solana_program::instruction::AccountMeta;
 use solana_program::pubkey::Pubkey;
 use std::str::FromStr;
 
 #[derive(Debug, Clone)]
-pub struct RaydiumPool {
-    pub pool: Pubkey,
-    pub token_vault: Pubkey,
-    pub sol_vault: Pubkey,
+pub struct MintPoolData {
+    pub mint: Pubkey,
+    pub token_program: Pubkey,
+    pub wallet_account: Pubkey,
+    pub wallet_wsol_account: Pubkey,
+    pub raydium_pools: Vec<RaydiumCpmmPool>,
+    pub raydium_cp_pools: Vec<RaydiumCpPool>,
+    pub pump_pools: Vec<PumpPool>,
+    pub dlmm_pairs: Vec<MeteoraDlmmPool>,
+    pub whirlpool_pools: Vec<WhirlpoolPool>,
+    pub raydium_clmm_pools: Vec<RaydiumClmmPool>,
+    pub meteora_damm_pools: Vec<MeteoraDammPool>,
+    pub solfi_pools: Vec<SolfiPool>,
+    pub meteora_damm_v2_pools: Vec<MeteoraDammV2Pool>,
+    pub vertigo_pools: Vec<VertigoPool>,
 }
+
+impl MintPoolData {
+    pub fn new(mint: &str, wallet_account: &str, token_program: Pubkey) -> anyhow::Result<Self> {
+        let sol_mint = Pubkey::from_str(SOL_MINT)?;
+        let wallet_pk = Pubkey::from_str(wallet_account)?;
+        let wallet_wsol_pk =
+            spl_associated_token_account::get_associated_token_address(&wallet_pk, &sol_mint);
+        Ok(Self {
+            mint: Pubkey::from_str(mint)?,
+            token_program,
+            wallet_account: wallet_pk,
+            wallet_wsol_account: wallet_wsol_pk,
+            raydium_pools: Vec::new(),
+            raydium_cp_pools: Vec::new(),
+            pump_pools: Vec::new(),
+            dlmm_pairs: Vec::new(),
+            whirlpool_pools: Vec::new(),
+            raydium_clmm_pools: Vec::new(),
+            meteora_damm_pools: Vec::new(),
+            solfi_pools: Vec::new(),
+            meteora_damm_v2_pools: Vec::new(),
+            vertigo_pools: Vec::new(),
+        })
+    }
+
+    // Helper methods are now handled by initializers directly adding to the vectors, 
+    // or we can keep add methods if needed, but since we are refactoring refresh.rs 
+    // to bulk-initialize, these add_* methods might become redundant or change signature.
+    // For now, I'll keep the struct definition clean. The logic in refresh.rs will construct MintPoolData
+    // and populate the vectors directly.
+}
+
 
 #[derive(Debug, Clone)]
 pub struct RaydiumCpPool {
