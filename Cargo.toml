@@ -51,5 +51,13 @@ tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 # Lazy static initialization
 lazy_static = "1.4"
 
+[dev-dependencies]
+proptest = "1.0"
+criterion = { version = "0.5", features = ["html_reports"] }
+
+[[bench]]
+name = "pool_benchmarks"
+harness = false
+
 meteora-damm-cpi = { path = "lib/meteora-damm", features = ["no-entrypoint"] }
 meteora-vault-cpi = { path = "lib/meteora-vault", features = ["no-entrypoint"] }
