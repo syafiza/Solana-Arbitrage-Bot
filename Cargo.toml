@@ -42,6 +42,7 @@ async-trait = "0.1"
 thiserror = "1.0"
 rand = "0.8"
 bs58 = "0.4"
+chrono = { version = "0.4", features = ["serde"] }
 
 # HTTP server for health checks
 warp = "0.3"
@@ -64,8 +65,13 @@ tonic = "0.9"
 prost = "0.11"
 prost-types = "0.11"
 
-# Command line argument parsing
-clap = "3.2"
+# Database
+sqlx = { version = "0.7", features = ["runtime-tokio-rustls", "sqlite"] }
+
+# Multi-threading & Async utilities
+rayon = "1.8"
+tokio-util = "0.7"
+dashmap = "5.5" # Concurrent map for shared state
 
 # Logging
 tracing = "0.1"
