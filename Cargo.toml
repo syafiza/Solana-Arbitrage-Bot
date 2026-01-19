@@ -34,6 +34,7 @@ futures = "0.3"
 
 # Utilities
 anyhow = "1.0"
+async-trait = "0.1"
 thiserror = "1.0"
 rand = "0.8"
 bs58 = "0.4"
@@ -46,6 +47,9 @@ clap = "3.2"
 # Logging
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+
+# Lazy static initialization
+lazy_static = "1.4"
 
 meteora-damm-cpi = { path = "lib/meteora-damm", features = ["no-entrypoint"] }
 meteora-vault-cpi = { path = "lib/meteora-vault", features = ["no-entrypoint"] }

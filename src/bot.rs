@@ -1,7 +1,11 @@
 use crate::config::Config;
+use crate::constants::{
+    ATA_CREATION_COMPUTE_UNIT_LIMIT, ATA_CREATION_COMPUTE_UNIT_PRICE,
+    DEFAULT_BLOCKHASH_REFRESH_INTERVAL_SECS, DEFAULT_LOOKUP_TABLE_PUBKEY,
+};
+use crate::error::{BotError, BotResult};
 use crate::refresh::initialize_pool_data;
 use crate::transaction::build_and_send_transaction;
-use anyhow::Context;
 use solana_client::rpc_client::RpcClient;
 use solana_sdk::address_lookup_table::AddressLookupTableAccount;
 use solana_sdk::hash::Hash;
@@ -20,7 +24,7 @@ use std::time::Duration;
 use tokio::sync::Mutex;
 use tracing::{error, info, warn};
 
-pub async fn run_bot(config_path: &str) -> anyhow::Result<()> {
+pub async fn run_bot(config_path: &str) -> BotResult<()> {
     let config = Config::load(config_path)?;
     info!("Configuration loaded successfully");
 
@@ -40,29 +44,41 @@ pub async fn run_bot(config_path: &str) -> anyhow::Result<()> {
         vec![rpc_client.clone()]
     };
 
-    let wallet_kp =
-        load_keypair(&config.wallet.private_key).context("Failed to load wallet keypair")?;
+    let wallet_kp = load_keypair(&config.wallet.private_key)?;
     info!("Wallet loaded: {}", wallet_kp.pubkey());
 
-    let initial_blockhash = rpc_client.get_latest_blockhash()?;
+    let initial_blockhash = rpc_client
+        .get_latest_blockhash()
+        .map_err(|e| BotError::rpc_retryable(config.rpc.url.clone(), format!("Failed to get initial blockhash: {}", e)))?;
     let cached_blockhash = Arc::new(Mutex::new(initial_blockhash));
 
-    let refresh_interval = Duration::from_secs(10);
+    let refresh_interval = Duration::from_secs(DEFAULT_BLOCKHASH_REFRESH_INTERVAL_SECS);
     let blockhash_client = rpc_client.clone();
     let blockhash_cache = cached_blockhash.clone();
+    let rpc_url_for_task = config.rpc.url.clone();
     tokio::spawn(async move {
-        blockhash_refresher(blockhash_client, blockhash_cache, refresh_interval).await;
+        blockhash_refresher(blockhash_client, blockhash_cache, refresh_interval, rpc_url_for_task).await;
     });
 
     for mint_config in &config.routing.mint_config_list {
         // Get the mint account info to check owner
-        let mint_owner = rpc_client
-            .get_account(&Pubkey::from_str(&mint_config.mint).unwrap())
-            .unwrap()
-            .owner;
+        let mint_pubkey = Pubkey::from_str(&mint_config.mint)
+            .map_err(|e| BotError::InvalidPublicKey {
+                key: mint_config.mint.clone(),
+                source: e,
+            })?;
+
+        let mint_account = rpc_client
+            .get_account(&mint_pubkey)
+            .map_err(|e| BotError::AccountFetchError {
+                address: mint_pubkey,
+                reason: format!("Failed to fetch mint account: {}", e),
+            })?;
+        
+        let mint_owner = mint_account.owner;
         let wallet_token_account = get_associated_token_address_with_program_id(
             &wallet_kp.pubkey(),
-            &Pubkey::from_str(&mint_config.mint).unwrap(),
+            &mint_pubkey,
             &mint_owner,
         );
 
@@ -84,7 +100,7 @@ pub async fn run_bot(config_path: &str) -> anyhow::Result<()> {
                             spl_associated_token_account::instruction::create_associated_token_account_idempotent(
                                 &wallet_kp.pubkey(), // Funding account
                                 &wallet_kp.pubkey(), // Wallet account
-                                &Pubkey::from_str(&mint_config.mint).unwrap(),   // Token mint
+                                &mint_pubkey,        // Token mint
                                 &spl_token::ID,      // Token program
                             );
 
@@ -92,9 +108,9 @@ pub async fn run_bot(config_path: &str) -> anyhow::Result<()> {
                     let blockhash = rpc_client.get_latest_blockhash()?;
 
                     let compute_unit_price_ix =
-                        ComputeBudgetInstruction::set_compute_unit_price(1_000_000);
+                        ComputeBudgetInstruction::set_compute_unit_price(ATA_CREATION_COMPUTE_UNIT_PRICE);
                     let compute_unit_limit_ix =
-                        ComputeBudgetInstruction::set_compute_unit_limit(60_000);
+                        ComputeBudgetInstruction::set_compute_unit_limit(ATA_CREATION_COMPUTE_UNIT_LIMIT);
 
                     // Create the transaction
                     let create_ata_tx = solana_sdk::transaction::Transaction::new_signed_with_payer(
@@ -110,8 +126,9 @@ pub async fn run_bot(config_path: &str) -> anyhow::Result<()> {
                             println!("   token account created successfully! Signature: {}", sig);
                         }
                         Err(e) => {
-                            println!("   Failed to create token account: {:?}", e);
-                            return Err(anyhow::anyhow!("Failed to create token account"));
+                            let err = BotError::WalletError(format!("Failed to create token account for {}: {}", mint_config.mint, e));
+                            error!("{}", err);
+                            return Err(err);
                         }
                     }
                 }
@@ -148,9 +165,10 @@ pub async fn run_bot(config_path: &str) -> anyhow::Result<()> {
         let sending_rpc_clients_clone = sending_rpc_clients.clone();
         let cached_blockhash_clone = cached_blockhash.clone();
         let wallet_bytes = wallet_kp.to_bytes();
-        let wallet_kp_clone = Keypair::from_bytes(&wallet_bytes).unwrap();
+        let wallet_kp_clone = Keypair::from_bytes(&wallet_bytes)
+            .map_err(|e| BotError::WalletError(format!("Failed to clone keypair: {}", e)))?;
         let mut lookup_table_accounts = mint_config_clone.lookup_table_accounts.unwrap_or_default();
-        lookup_table_accounts.push("4sKLJ1Qoudh8PJyqBeuKocYdsZvxTcRShUt9aKqwhgvC".to_string());
+        lookup_table_accounts.push(DEFAULT_LOOKUP_TABLE_PUBKEY.to_string());
 
         let mut lookup_table_accounts_list = vec![];
 
@@ -253,6 +271,7 @@ async fn blockhash_refresher(
     rpc_client: Arc<RpcClient>,
     cached_blockhash: Arc<Mutex<Hash>>,
     refresh_interval: Duration,
+    rpc_url: String,
 ) {
     loop {
         match rpc_client.get_latest_blockhash() {
@@ -262,27 +281,29 @@ async fn blockhash_refresher(
                 info!("Blockhash refreshed: {}", blockhash);
             }
             Err(e) => {
-                error!("Failed to refresh blockhash: {:?}", e);
+                let error = BotError::rpc_retryable(rpc_url.clone(), format!("Failed to refresh blockhash: {}", e));
+                error!("{} (severity: {})", error, error.severity().as_str());
             }
         }
         tokio::time::sleep(refresh_interval).await;
     }
 }
 
-fn load_keypair(private_key: &str) -> anyhow::Result<Keypair> {
-    if let Ok(keypair) = bs58::decode(private_key)
-        .into_vec()
-        .map_err(|e| anyhow::anyhow!("Failed to decode base58: {}", e))
-        .and_then(|bytes| {
-            Keypair::from_bytes(&bytes).map_err(|e| anyhow::anyhow!("Invalid keypair bytes: {}", e))
-        })
-    {
-        return Ok(keypair);
+fn load_keypair(private_key: &str) -> BotResult<Keypair> {
+    // Try base58 decoding first
+    if let Ok(bytes) = bs58::decode(private_key).into_vec() {
+        if let Ok(keypair) = Keypair::from_bytes(&bytes) {
+            return Ok(keypair);
+        }
     }
 
+    // Try loading from file
     if let Ok(keypair) = solana_sdk::signature::read_keypair_file(private_key) {
         return Ok(keypair);
     }
 
-    anyhow::bail!("Failed to load keypair from: {}", private_key)
+    Err(BotError::WalletError(format!(
+        "Failed to load keypair from '{}'. Expected base58-encoded private key or path to keypair file.",
+        private_key
+    )))
 }

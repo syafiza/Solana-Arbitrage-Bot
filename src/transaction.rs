@@ -1,7 +1,14 @@
 use crate::config::Config;
+use crate::constants::{
+    COMPUTE_UNIT_RANDOMIZATION_RANGE, DEFAULT_COMPUTE_UNIT_PRICE, DEFAULT_MAX_RETRIES,
+    EXECUTOR_PROGRAM_PUBKEY, FEE_COLLECTOR_PUBKEY, KAMINO_LENDING_PROGRAM_PUBKEY,
+    MINIMUM_PROFIT_DEFAULT, NO_FAILURE_MODE_DEFAULT, PUMP_AUTHORITY_PUBKEY,
+    PUMP_GLOBAL_CONFIG_PUBKEY, SYSVAR_INSTRUCTIONS_PUBKEY,
+};
 use crate::dex::raydium::{raydium_authority, raydium_cp_authority};
 use crate::dex::solfi::constants::solfi_program_id;
 use crate::dex::vertigo::constants::vertigo_program_id;
+use crate::error::BotError;
 use crate::pools::MintPoolData;
 use solana_client::rpc_client::RpcClient;
 use solana_program::instruction::Instruction;
@@ -46,11 +53,14 @@ pub async fn build_and_send_transaction(
     let mut instructions = vec![];
     // Add a random number here to make each transaction unique
     let compute_budget_ix = ComputeBudgetInstruction::set_compute_unit_limit(
-        compute_unit_limit + rand::random::<u32>() % 1000,
+        compute_unit_limit + rand::random::<u32>() % COMPUTE_UNIT_RANDOMIZATION_RANGE,
     );
     instructions.push(compute_budget_ix);
 
-    let compute_unit_price = config.spam.as_ref().map_or(1000, |s| s.compute_unit_price);
+    let compute_unit_price = config
+        .spam
+        .as_ref()
+        .map_or(DEFAULT_COMPUTE_UNIT_PRICE, |s| s.compute_unit_price);
     let compute_budget_price_ix =
         ComputeBudgetInstruction::set_compute_unit_price(compute_unit_price);
     instructions.push(compute_budget_price_ix);
@@ -83,7 +93,7 @@ pub async fn build_and_send_transaction(
         .spam
         .as_ref()
         .and_then(|s| s.max_retries)
-        .unwrap_or(3);
+        .unwrap_or(DEFAULT_MAX_RETRIES);
 
     let mut signatures = Vec::new();
 
@@ -138,15 +148,12 @@ fn create_swap_instruction(
 ) -> anyhow::Result<Instruction> {
     debug!("Creating swap instruction for all DEX types");
 
-    let executor_program_id =
-        Pubkey::from_str("MEViEnscUm6tsQRoGd9h6nLQaQspKj7DB2M5FwM3Xvz").unwrap();
-    let fee_collector = Pubkey::from_str("6AGB9kqgSp2mQXwYpdrV4QVV8urvCaDS35U1wsLssy6H").unwrap();
+    let executor_program_id = *EXECUTOR_PROGRAM_PUBKEY;
+    let fee_collector = *FEE_COLLECTOR_PUBKEY;
 
-    let pump_global_config =
-        Pubkey::from_str("ADyA8hdefvWN2dbGGWFotbzWxrAvLW83WG6QCVXvJKqw").unwrap();
-    let pump_authority = Pubkey::from_str("GS4CU59F31iL7aR2Q8zVS8DRrcRnXX1yjQ66TqNVQnaR").unwrap();
-    let sysvar_instructions =
-        Pubkey::from_str("Sysvar1nstructions1111111111111111111111111").unwrap();
+    let pump_global_config = *PUMP_GLOBAL_CONFIG_PUBKEY;
+    let pump_authority = *PUMP_AUTHORITY_PUBKEY;
+    let sysvar_instructions = *SYSVAR_INSTRUCTIONS_PUBKEY;
 
     let wallet = wallet_kp.pubkey();
     let sol_mint_pubkey = sol_mint();
@@ -166,13 +173,10 @@ fn create_swap_instruction(
 
     if use_flashloan {
         accounts.push(AccountMeta::new_readonly(
-            Pubkey::from_str("5LFpzqgsxrSfhKwbaFiAEJ2kbc9QyimjKueswsyU4T3o").unwrap(),
+            *KAMINO_LENDING_PROGRAM_PUBKEY,
             false,
         ));
-        let token_pda = derive_vault_token_account(
-            &Pubkey::from_str("MEViEnscUm6tsQRoGd9h6nLQaQspKj7DB2M5FwM3Xvz").unwrap(),
-            &base_mint,
-        );
+        let token_pda = derive_vault_token_account(&executor_program_id, &base_mint);
         accounts.push(AccountMeta::new(token_pda.0, false));
     }
 
@@ -311,9 +315,8 @@ fn create_swap_instruction(
 
     let mut data = vec![26u8];
 
-    let minimum_profit: u64 = 0;
-    // When true, the bot will not fail the transaction even when it can't find a profitable arbitrage. It will just do nothing and succeed.
-    let no_failure_mode = false;
+    let minimum_profit: u64 = MINIMUM_PROFIT_DEFAULT;
+    let no_failure_mode = NO_FAILURE_MODE_DEFAULT;
 
     data.extend_from_slice(&minimum_profit.to_le_bytes());
     data.extend_from_slice(&compute_unit_limit.to_le_bytes());
