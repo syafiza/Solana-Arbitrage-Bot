@@ -5,6 +5,7 @@ pub mod constants;
 pub mod dex;
 pub mod error;
 pub mod health;
+pub mod latency;
 pub mod metrics;
 pub mod pool;
 pub mod pools;

@@ -29,7 +29,11 @@ serde = { version = "1.0", features = ["derive"] }
 toml = "0.5"
 
 # Async runtime
-tokio = { version = "1.32", features = ["full"] }
+tokio = { version = "1.40.0", features = ["full"] }
+
+# WebSocket for real-time feeds
+tokio-tungstenite = "0.21"
+futures-util = "0.3"
 futures = "0.3"
 
 # Utilities
